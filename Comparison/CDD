@@ -1,0 +1,51 @@
+import numpy as np
+from numpy import *
+import pandas as pd
+from pylab import *
+from sympy import *
+from matplotlib.ticker import MultipleLocator
+import matplotlib.pyplot as plt
+from sympy.stats.frv_types import numpy
+import time
+
+def get_csv_data(file_path):
+    reliability_df = pd.read_csv(file_path, dtype={'reliability': float}, \
+                                   encoding='utf-8')
+    print("type(reliability_df)=", type(reliability_df))
+    return reliability_df
+
+data_file_path = "incremental.csv"
+omega =30; eta = 3; sigma = 1
+pho = 0; gammmar = sigma
+thres_value =1.8e-2
+js_cnt = 0
+###
+plt.rcParams['font.sans-serif'] = ['SimHei']  
+plt.rcParams['axes.unicode_minus'] = False 
+
+distance_list_1 = []
+idx_list_1 = []
+
+#1
+start_1 =time.time()
+for js in range(omega-1, len(reliability_1)-(omega-1)):
+    B_t = [([0]*sigma) for i in range(omega)]
+    A_t = [([0]*gammmar) for i in range(omega)]
+    for rows in range(omega):
+        for cols in range(sigma):
+            B_t[rows][cols] = reliability_1[js-omega+rows+cols+1-sigma] 
+            A_t[rows][cols] = reliability_1[js+pho+rows+cols]
+    B_t = np.mat(np.array(B_t))  
+    A_t = np.mat(np.array(A_t))
+    dist = np.abs(A_t - B_t).max()
+    distance_list_1.append(dist)
+    idx_list_1.append(js)
+    if dist > thres_value  :
+        #print("时间点%d(s)发生了漂移检测"%js)
+        #print("其对应的FDC为%f"% FDC)
+        outliers_detection.append(dist)
+        outliers_time.append(js)
+        js_cnt += 1
+print("JS_1最大值为：",max(distance_list_1),np.argmax(distance_list_1))
+end_1 = time.time()
+print('Running time: %s Seconds'%(end_1-start_1))
