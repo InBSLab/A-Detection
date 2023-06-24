@@ -1,0 +1,56 @@
+import numpy as np
+from numpy import *
+import pandas as pd
+from pylab import *
+from sympy import *
+from matplotlib.ticker import MultipleLocator
+import matplotlib.pyplot as plt
+from sympy.stats.frv_types import numpy
+import scipy.stats
+from numpy import concatenate, linspace
+from scipy.stats import gaussian_kde, entropy
+import pandas as pd
+import scipy.stats
+from scipy.stats import wasserstein_distance
+import numpy as np
+from numpy import concatenate, linspace
+from scipy.stats import gaussian_kde, entropy
+import pandas as pd
+import scipy.stats
+from scipy.stats import wasserstein_distance
+import numpy as np
+import time
+
+def get_csv_data(file_path):
+    reliability_df = pd.read_csv(file_path, dtype={'reliability': float}, \
+                                   encoding='utf-8')
+    print("type(reliability_df)=", type(reliability_df))
+    return reliability_df
+
+data_file_path = "incremental.csv"
+
+reliability_df = get_csv_data(data_file_path)
+reliability_1 = list(reliability_df['reliability_1'])
+distance_list_1 = []
+idx_list_1 = []
+start_1 =time.time()
+for js in range(2*omega-1, len(reliability_df)-(2*omega-1)):
+    B_t = [] 
+    A_t = []
+    for cols in range(omega):
+        B_t.append(reliability_1[js - omega + cols + 1 + 1 - sigma]) 
+        A_t.append(reliability_1[js + pho + 1 + cols])
+    p = np.array(B_t) 
+    q = np.array(A_t)
+    dist = wasserstein_distance(p, q)
+    distance_list_1.append(dist)
+    idx_list_1.append(js)
+    if dist > thres_value  :
+        #print("时间点%d(s)发生了漂移检测"%js)
+        #print("其对应的FDC为%f"% FDC)
+        outliers_detection.append(dist)
+        outliers_time.append(js)
+        js_cnt += 1
+print("JS_1最大值为：",max(distance_list_1),np.argmax(distance_list_1))
+end_1 = time.time()
+print('Running time: %s Seconds'%(end_1-start_1))
