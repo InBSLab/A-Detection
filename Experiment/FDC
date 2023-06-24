@@ -1,0 +1,120 @@
+import numpy as np
+import pandas as pd
+import scipy.stats
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+from pylab import *
+import heapq
+import random
+
+
+class ReservoirSample(object):
+    def __init__(self, size):
+        self._size = size
+        self._counter = 0
+        self._sample = []
+
+    def feed(self, item):
+        self._counter += 1
+        # 第i个元素（i <= k），直接进入池中
+        if len(self._sample) < self._size:
+            self._sample.append(item)
+            return self._sample
+        # 第i个元素（i > k），以k / i的概率进入池中
+        rand_int = random.randint(1, self._counter)
+        if rand_int <= self._size:
+            self._sample[rand_int - 1] = item
+        return self._sample
+
+data_file_path = "sudden1.csv"
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+
+
+
+def get_csv_data(file_path):
+    reliability_df = pd.read_csv(file_path, dtype={'reliability': float}, \
+                                   encoding='utf-8')
+    print("type(reliability_df)=", type(reliability_df))
+    return reliability_df
+reliability_df = get_csv_data(data_file_path)
+reliability = list(reliability_df['reliability_20'])
+print("=", reliability_df)
+
+def JS_divergence(p, q):
+    M = (p + q) / 2
+    return 0.5 * scipy.stats.entropy(p, M) + 0.5 * scipy.stats.entropy(q, M)
+
+
+omega = 30
+eta = 4
+gammar = sigma = omega
+pho = 0
+thres_value =2e-4
+js_cnt = 0
+FDC_list = []
+idx_list = []
+label_list = []
+r_list = []
+i_list = []
+pre_label_list = []
+outliers_detection = []
+outliers_time = []
+sample=0
+sample_row=0
+vector=[]
+start =time.time()
+for js in range(0, len(reliability)-gammar-sigma): # 依次赋值#
+    start_0 = time.time()
+    rs_item = ReservoirSample(1)
+    for item in range(0, js):
+        sample = rs_item.feed(item)
+        sample=sample[0]
+    rs_row = ReservoirSample(1)
+    for item in range(0, omega):
+        sample_row = rs_row.feed(item)
+        sample_row=sample_row[0]
+    #sample_row = random.randint(0,omega-1)
+    #print(sample,sample_row)
+    B_t = [([0] * sigma) for i in range(omega)] 
+    A_t = [([0] * gammar) for i in range(omega)]
+    for rows in range(omega):
+        for cols in range(sigma):
+            B_t[rows][cols] = reliability[js+rows+cols] # 生成x(t)这个点之前的数据的矩阵
+            B_t[sample_row][cols] = reliability[sample + rows + cols]
+            A_t[rows][cols] = reliability[js + rows + cols]  # 生成x(t)这个点之后的数据的矩阵
+    B_t = np.mat(np.array(B_t))  # 生成矩阵#
+    A_t = np.mat(np.array(A_t))
+    B_t_s, B_t_v, B_t_d = np.linalg.svd(B_t)
+    A_t_s, A_t_v, A_t_d = np.linalg.svd(A_t)
+    U_b_t = np.mat(B_t_s[:, :eta])
+    U_a_t = np.mat(A_t_s[:, :eta])
+    FDC = JS_divergence(U_b_t,U_a_t)[0]
+    FDC_list.append(FDC)
+    idx_list.append(js)#or FDC-FDC_list[0]> thres_value
+    end_0 = time.time()
+    print("用时%f"% (end_0-start_0))
+    if FDC > thres_value  :
+        print("时间点%d(s)发生了漂移检测"%js)
+        print("其对应的FDC为%f"% FDC)
+
+        outliers_detection.append(FDC)
+        outliers_time.append(js)
+        js_cnt += 1
+
+print("FDC最大值为：",max(FDC_list),np.argmax(FDC_list))
+res1=heapq.nlargest(3, FDC_list)
+res2=list(map(FDC_list.index, heapq.nlargest(3, FDC_list)))
+res3=np.array(res2)
+
+print("FDC最大的前几个值为：",res1,res3)
+ax = subplot(1, 1, 1)
+ymajorLocator = MultipleLocator(thres_value )            # y轴主刻度标签
+ax.yaxis.set_major_locator(ymajorLocator)
+print("发生概念漂移的点的个数为%d"%js_cnt)
+plt.plot(idx_list, FDC_list, color='g')
+plt.xlabel("时间(单位:秒)")
+plt.ylabel("FDC距离")
+plt.show()
+end = time.time()
+print('Running time: %s Seconds'%(end-start))
